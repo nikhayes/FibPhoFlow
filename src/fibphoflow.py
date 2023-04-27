@@ -17,7 +17,6 @@ from scipy.ndimage.filters import uniform_filter1d, median_filter
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
-from datetime import datetime
 from math import sqrt
 import time
 import re
@@ -30,53 +29,7 @@ def time2sec(time):
     time = [int(x) for x in time.split(',')]
     seconds = (time[0] * 60**2) + (time[1] * 60) + time[2]
     return seconds
-        
-           
-# def xlsx2dataframe(xlsx_file, path=os.getcwd(), sheet_list=False, experiment=None):
-#     """Sheets should just be an index"""
-#     for root, dirs, files in os.walk(path, topdown=True): #maybe add path option here for raw recordings    
-#         if xlsx_file in files:
-#             path_xlsx = r"{}".format(root + "/" + xlsx_file)
 
-#     xlsx_file = pd.ExcelFile(path_xlsx) #xlsx_file gets reassigned here
-#     sheet_names = xlsx_file.sheet_names
-#     df_list = []
-    
-#     for i, sheet in enumerate(sheet_names):   
-#         if sheet_list == False:
-#             df_list.append(xlsx_file.parse(sheet_name=sheet, header=0))
-#         else: 
-#             if i in sheet_list or sheet in sheet_list:
-#                 df_list.append(xlsx_file.parse(sheet_name=sheet, header=0))
-                
-#     exp_df = pd.concat(df_list, ignore_index=True, sort=False)
-#     exp_df.dropna(how='all') #drop empty rows
-#     exp_df['Date'] = exp_df['Date'].dt.strftime("%m/%d/%y")
-#     index_list = []
-    
-#     for i, row in exp_df.iterrows():
-#         if type(row["File"]) != str:
-#             print("Empty excel line at row ", i + 1)
-#             pass
-#         else: 
-#             filename = re.sub("-", "_", row["File"])
-#             identity = str(row["Mouse"]) + "_from_" + filename
-#             if identity[0] in "0123456789": #Need this for mice with no letter in front
-#                 identity = "Mouse" + identity
-#             else: 
-#                 identity = str(row["Mouse"]) + "_from_" + filename
-#             index_list.append(identity)
-#     exp_df.index = index_list    
-#     # have line that checks that the mouse is actually in the file as a failsafe
-    
-#     # if experiment == None:
-#     #     sub_df = exp_df
-#     # else: #Experiment needs to be an integer in column "Experiment"
-#     #     sub_df = exp_df[exp_df["Experiment"].isin([str(experiment)])]
-#     #     # future direction: sometimes a recording might be part of multiple groups/"experiments"
-#     #     # and so you might want to have a few experiments listed in experiment column
-        
-#     return exp_df#, sub_df
        
 def xlsx2dataframe(xlsx_file, path=os.getcwd(), sheet_list=False):
     """Sheets should just be an index"""
@@ -116,103 +69,40 @@ def xlsx2dataframe(xlsx_file, path=os.getcwd(), sheet_list=False):
     # have line that checks that the mouse is actually in the file as a failsafe
     return exp_df
 
-
-# def generate_recording(file_path, mouse_channel, down_hz, smoothing_window=1):
-#     """TDT formatting: https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/00_Intro/"""
-    
-#     data = tdt.read_block(file_path)
-#     data_channels = {list(data.streams.keys())}
-    
-#     print("New Version")
-    
-#     if mouse_channel == 1:
-        
-#         possible_gcamp_1 = {"_4701","_470A" , "_465A"}
-#         possible_isos_1 = {"_4051", "_405A"}
-        
-#         gcamp_1 = data_channels.intersection(possible_gcamp_1)[0]
-#         isos_1 = data_channels.intersection(possible_isos_1)[0]
-        
-#         gcamp470_raw = data.streams[gcamp_1].data
-#         isos405_raw = data.streams[isos_1].data
-#         raw_hz = data.streams[gcamp_1].fs
-    
-#     elif mouse_channel == 2:
-    
-#         possible_gcamp_2 = {"_4702", "_470B", "_465B"}
-#         possible_isos_2 = {"_4052", "_405B"}
-        
-#         gcamp_2 = data_channels.intersection(possible_gcamp_2)[0]
-#         isos_2 = data_channels.intersection(possible_isos_2)[0]
-                                             
-#         gcamp470_raw = data.streams[gcamp_2].data
-#         isos405_raw = data.streams[isos_2].data
-#         raw_hz = data.streams[gcamp_2].fs
-               
-#     else:
-#         print("mouse_channel must = 1 or 2")
-#         return 
-    
-#     gcamp470_smooth = uniform_filter1d(gcamp470_raw, size=smoothing_window*(1000)) #rolling mean filter
-#     gcamp470 = gcamp470_smooth[0:(len(gcamp470_smooth)-1):int(raw_hz/down_hz)] #downsamples  
-#     isos405_smooth = uniform_filter1d(isos405_raw, size=smoothing_window*(1000)) #rollling mean filter
-#     isos405 = isos405_smooth[0:(len(isos405_smooth)-1):int(raw_hz/down_hz)] #downsamples to 1 data point per second of smoothened trace
-
-#     time_vec = np.linspace(0, len(gcamp470)/(down_hz * 60), len(gcamp470)) #change this ***
-
-#     return time_vec, gcamp470, isos405
     
 
-def generate_recording(file_path, mouse_channel, down_hz, smoothing_window=1):
+def generate_recording(file_path, mouse_channel, channel_config, down_hz, smoothing_window=1):
+    """TDT formatting: https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/00_Intro/"""
     
     data = tdt.read_block(file_path)
     
-    if mouse_channel == 1:
-        try:
-            gcamp470_raw = data.streams._465A.data
-            isos405_raw = data.streams._405A.data
-            raw_hz = data.streams._465A.fs
+    data_channels = set(data.streams.keys()) 
+     
+    processed_traces = []
+    for count, i in enumerate(channel_config["colors"]):
+
+        possible_color_channels = channel_config[i][mouse_channel]
+        color_channel = list(data_channels.intersection(possible_color_channels))[0]
+
+        trace_raw = data.streams[color_channel].data
+        raw_hz = data.streams[color_channel].fs
+        
+        trace_smooth = uniform_filter1d(trace_raw, size=smoothing_window*(1000)) #rolling mean filter
+        trace_final = trace_smooth[0:(len(trace_smooth)-1):int(raw_hz/down_hz)]
+        
+        if count == 0:
+            time_vec = np.linspace(0, (len(trace_final) - 1)/(down_hz * 60), len(trace_final))
+            processed_traces.append(time_vec)
             
-        except:
-            gcamp470_raw = data.streams._470A.data
-            isos405_raw = data.streams._405A.data
-            raw_hz = data.streams._470A.fs
-                
-        # except:
-        #     gcamp470_raw = data.streams._465A.data
-        #     isos405_raw = data.streams._405A.data
-        #     raw_hz = data.streams._465A.fs
+        processed_traces.append(trace_final)
+    
+    #to do: make it channel agnostic. For now time_vec, gcamp470, isos405 order should stay the same
+    
+    return processed_traces
 
-    elif mouse_channel == 2:
-        try: 
-            gcamp470_raw = data.streams._465B.data
-            isos405_raw = data.streams._405B.data
-            raw_hz = data.streams._465B.fs
 
-        except:
-            gcamp470_raw = data.streams._470B.data
-            isos405_raw = data.streams._405B.data
-            raw_hz = data.streams._470B.fs
-            
-        # except:
-        #     gcamp470_raw = data.streams._4702.data
-        #     isos405_raw = data.streams._4052.data
-        #     raw_hz = data.streams._4702.fs
-            
-    else:
-        print("mouse_channel must = 1 or 2")
-        return 
-      
-    gcamp470_smooth = uniform_filter1d(gcamp470_raw, size=smoothing_window*(1000)) #rolling mean filter
-    gcamp470 = gcamp470_smooth[0:(len(gcamp470_smooth)-1):int(raw_hz/down_hz)] #downsamples  
-    isos405_smooth = uniform_filter1d(isos405_raw, size=smoothing_window*(1000)) #rollling mean filter
-    isos405 = isos405_smooth[0:(len(isos405_smooth)-1):int(raw_hz/down_hz)] #downsamples to 1 data point per second of smoothened trace
 
-    time_vec = np.linspace(0, len(gcamp470)/(down_hz * 60), len(gcamp470)) #change this ***
-
-    return time_vec, gcamp470, isos405
-
-def extract_experiment(exp_df, hdf5_name, xlsx_path=os.getcwd(), hdf5_path=os.getcwd(), down_hz=20):
+def extract_experiment(exp_df, channel_config, hdf5_name, xlsx_path=os.getcwd(), hdf5_path=os.getcwd(), down_hz=1):
     """Recording files refer to the TDT folders that have the recording files within."""
     
     # xlsx_name argument
@@ -276,40 +166,22 @@ def extract_experiment(exp_df, hdf5_name, xlsx_path=os.getcwd(), hdf5_path=os.ge
             question_hdf5_update = "Update " + hdf5_name + " to include recordings? Enter y or n: "
             answer_hdf5_update = input(question_hdf5_update)
             print("")
-            # question_backup = "Do you want to create backup file before continuing? Enter y or n"
-            # answer_backup = input(question_backup)
-            # if answer_backup == "y":
-            #     hdf5_surname, hdf5_h5 = hdf5_name.split(".")
-            #     now = datetime.now()
-            #     timestamp = now.strftime("%Y%b%d_%H%M%S")
-            #     hdf5_backup_name = hdf5_surname + "_" + timestamp + hdf5_h5
-            #     hdf5_file_backup = tb.open_file(hdf5_backup_name, 'a', title = hdf5_title)  
 
         if answer_hdf5_update == "y":
             for identity in recordings_2b_added:
                 recording_name = str(exp_df.loc[identity]["File"]) #this appeared as a pandas.core.series.Series in a certain instance why??
                 recording_group_name = exp_df.loc[identity]["Group"]
-                print(recording_name)
                 recording_path = raw_recordings_paths[recording_name]       
                 mouse_channel = exp_df.loc[identity]["Channel"]
                 print("Adding " + identity + " downsampled to " + str(down_hz) + "hz")
-                print("from " + recording_group_name + " group")
-                recording_data = generate_recording(recording_path, mouse_channel, down_hz)
+                print("from group " + recording_group_name)
+                recording_data = generate_recording(recording_path, mouse_channel, channel_config, down_hz)
+                #recording_data = generate_recording(recording_path, mouse_channel, channel_config, down_hz)
                 print("")
-                #recordings_dict[identity] = recording_data       
-                print("debugging")
-                print(identity)
-                print(recording_group_name)
-                print("0: ", type(recording_data[0]), " ", len(recording_data[0]), " ", recording_data[0][0:10])
-                print("1: ", type(recording_data[1]), " ", len(recording_data[1]), " ", recording_data[1][0:10])
-                print("2: ", type(recording_data[2]), " ", len(recording_data[2]), " ", recording_data[2][0:10])
-
+                
                 recording_group = hdf5_file.create_group("/", str(identity), "")
                 recording_group._v_attrs.identity = identity
                 recording_group._v_attrs.group = recording_group_name
-                print("time_vec check: ", "len: ", len(recording_data[0]), " first 10 ", recording_data[0][0:10])
-                print("time_vec check: ", "len: ", len(recording_data[1]), " first 10 ", recording_data[1][0:10])
-                print("time_vec check: ", "len: ", len(recording_data[2]), " first 10 ", recording_data[2][0:10])
                 hdf5_file.create_array(recording_group, "timevec", recording_data[0], ("Time vector " + str(down_hz) + "hz"))
                 hdf5_file.create_array(recording_group, "gcamp470", recording_data[1], ("Gcamp470 " + str(down_hz) + "hz"))
                 hdf5_file.create_array(recording_group, "isos405", recording_data[2], ("Isos405 " + str(down_hz) + "hz"))
@@ -420,25 +292,12 @@ def extract_intervention(full_recording, start_time, experiment_len, deltapercen
     return gcamp470_isocorr, gcamp470, isos405
        
 
+
 def collate_traces(traces_list): 
     traces = []
     for trace in traces_list:
         traces.append(trace[1])
-        print(len(traces))
     time_vec = traces_list[0][0] #take tme vec from first trace
-    mean_of_traces = np.mean(traces, axis=0)
-    stderr_of_traces = np.std(traces, axis=0)/sqrt(len(traces))
-    return time_vec, mean_of_traces, stderr_of_traces
-
-
-
-def collate_traces(traces_list): 
-    traces = []
-    for trace in traces_list:
-        traces.append(trace[1])
-    print(len(traces_list))
-    #time_vec = trace[0]
-    time_vec = traces_list[0][0]
     mean_of_traces = np.mean(traces, axis=0)
     stderr_of_traces = np.std(traces, axis=0)/sqrt(len(traces))
     return time_vec, mean_of_traces, stderr_of_traces
@@ -577,7 +436,6 @@ def average_epochs(sub_df, epoch_dict, epoch_list):
     return epoch_dict_averaged
 
 
-
 def averagedepochs_to_excel(excel_name, epoch_dict_averaged, groups2compare):
     """Take an average reverse epoch dict (Epochs -> Individual Traces) and convert to dataframe.
         Name excel_name as a "string" "without using spaces or slashes or special characters. 
@@ -599,7 +457,6 @@ def averagedepochs_to_excel(excel_name, epoch_dict_averaged, groups2compare):
                 worksheet.write_column(0, n, column_content)
                 n = n + 1
     workbook.close()
-    
     
     
     
@@ -633,7 +490,6 @@ def auc_finder(avg_epoch_dict, epoch_name, start_minute, end_minute):
 
 
 
-
 def average_window(epoch_dict_averaged, groups2compare, epoch_name, start_minute, end_minute, down_hz=1):
     """times are in minutes"""
     
@@ -659,6 +515,7 @@ def average_window(epoch_dict_averaged, groups2compare, epoch_name, start_minute
             
     return average_window_dict
     
+
 
 
 def fig2_epochs_plt(exp_df, reverse_epoch_dict, groups2compare, exp_df_column="Group", deltapercent=True):
@@ -724,6 +581,7 @@ def fig2_epochs_plt(exp_df, reverse_epoch_dict, groups2compare, exp_df_column="G
             group_traces_plt.legend(loc="upper right", fontsize="large", shadow=True)
             
             fig3.tight_layout()
+
 
 
 def fig3_permouse_interventioncompare(exp_df, reverse_epoch_dict, groups2compare, mice2plot, exp_df_column="Group"):
