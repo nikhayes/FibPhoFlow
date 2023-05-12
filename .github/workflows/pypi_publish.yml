@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  build-n-publish:
+  build_and_publish:
     name: Build and publish Python distributions to PyPI
     runs-on: ubuntu-latest
     
