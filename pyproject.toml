@@ -37,6 +37,7 @@ classifiers = [
 ]
 
 [tool.setuptools_scm]
+local_scheme = "no-local-version"
 write_to = "src/_version.py"
 
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#license
