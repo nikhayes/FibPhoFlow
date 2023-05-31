@@ -1,7 +1,7 @@
 [build-system]
 requires = [
 	"setuptools >= 65",
-	"setuptools_scm[toml]",
+	"setuptools_scm[toml] >= 6.2",
 	"wheel >= 0.38",
 ]
 build-backend = "setuptools.build_meta"
@@ -36,7 +36,7 @@ classifiers = [
 	"Topic :: Scientific/Engineering",
 ]
 
-[tools.setuptools_scm]
-write_to = "fibphoflow/_version.py"
+[tool.setuptools_scm]
+write_to = "src/_version.py"
 
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#license
