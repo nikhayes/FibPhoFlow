@@ -9,6 +9,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fibphoflow"
 dynamic = ["version"]
+readme = "README.md"
 description = "Python package to process and visualize TDT fiber photometry data"
 dependencies = [
 	'importlib_metadata; python_version < "3.8"',
@@ -20,7 +21,7 @@ dependencies = [
 	"tdt",
 	"xlsxwriter",
 ]
-license = {text = "MIT License"}
+license = {file = "LICENSE"}
 keywords = [
 	"neuroscience",
 	"calcium activity",
@@ -38,3 +39,4 @@ classifiers = [
 [tools.setuptools_scm]
 write_to = "fibphoflow/_version.py"
 
+# https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#license
