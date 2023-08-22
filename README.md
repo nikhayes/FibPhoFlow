@@ -2,11 +2,34 @@
 
 FibPhoFlow is an open-source fiber photometry data analysis package compatible with data obtained from [TdT fiber photometry](https://www.tdt.com/system/behavior-and-fiber-photometry/) hardware and software.
 
-## How to download
+## Installation
 
-This package is currently available on PyPi for download with pip, but certain dependency issues associated with the HDF5 data storage package Tables are currently being troubleshooted. 
+This package is currently available on PyPi for download with pip, but certain dependency issues associated with the HDF5 data storage related python packages, h5py and pytables, tend to cause build errors in different environments. The simplest way to use this python package is to use the python package manager, Anaconda. If you are trying to pip install this package without Conda you will need to download the C package HDF5. https://www.hdfgroup.org/downloads/hdf5/.
 
-Until that is resolved, one must download the fibphoflow.py file present in the github src folder, and use it as a local script. One can place fibphoflow.py in your python working directory or add its path with sys.path.append(). Also note that this package applies experimental metadata from a user-provided excel sheet, so at some step the user will need Microsoft Excel.
+### Step 1: 
+- Download [Anaconda](https://www.anaconda.com/download) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
+- Download an IDE which allows you to see plots, such as [Spyder](https://www.spyder-ide.org/) or [Jupyterlab](https://jupyter.org/)
+  - You can install Spyder or Jupyterlab once you have Conda with:
+    ```conda install -c anaconda spyder```
+    ```conda install -c conda-forge jupyterlab```
+
+### Step 2: Create Conda virtual environment for fibphoflow
+- Open your [Terminal](https://cs.colby.edu/maxwell/courses/tutorials/terminal/)
+- Create a folder on your desktop to launch Conda environment
+```
+mkdir folder_name
+cd folder_name
+```
+- Right click save this Anaconda virtual environment (venv) file into this folder
+```https://raw.githubusercontent.com/nikhayes/fibphoflow/main/src/environment.yml```
+- While in the folder you created, create the Conda venv (includes needed package dependences)
+```conda env create -f environment.yml```
+- Activate Conda venv
+```conda activate fibphoflow_venv```
+- For more information on general conda venv usage, [see here](environments.html#activating-an-environment)
+
+### Step 3: Connect the Conda venv with your IDE
+- Configure your venv with Spyder or Jupyter [with these instructions](https://medium.com/@apremgeorge/using-conda-python-environments-with-spyder-ide-and-jupyter-notebooks-in-windows-4e0a905aaac5)
 
 ## Overview of Workflow
 
