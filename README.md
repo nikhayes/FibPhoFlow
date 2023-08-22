@@ -15,17 +15,14 @@ This package is currently available on [PyPi](https://test.pypi.org/project/fibp
 
 ### Step 2: Create Conda virtual environment for fibphoflow
 - Open your [Terminal](https://cs.colby.edu/maxwell/courses/tutorials/terminal/)
-- Create a folder on your desktop to launch Conda environment
+- Create a folder somewhere (i.e. desktop) to launch Conda environment
 ```
 mkdir folder_name
 ```
 ```
 cd folder_name
 ```
-- Right click save this Anaconda virtual environment (venv) file into this folder
-```
-https://raw.githubusercontent.com/nikhayes/fibphoflow/main/src/environment.yml
-```
+- Right click save [this Anaconda virtual environment (venv) file](https://raw.githubusercontent.com/nikhayes/fibphoflow/main/src/environment.yml) into your folder
 - While in the folder you created, create the Conda venv (includes needed package dependences)
 ```
 conda env create -f environment.yml
