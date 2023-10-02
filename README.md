@@ -9,9 +9,13 @@ This package is currently available on [PyPi](https://test.pypi.org/project/fibp
 ### Step 1: 
 - Download [Anaconda](https://www.anaconda.com/download) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
 - Download an IDE which allows you to see plots, such as [Spyder](https://www.spyder-ide.org/) or [Jupyterlab](https://jupyter.org/)
-  - You can install Spyder or Jupyterlab once you have Conda with:
-    ```conda install -c anaconda spyder```
-    ```conda install -c conda-forge jupyterlab```
+  - You can install Spyder or Jupyterlab once you have Conda with one of these:
+    ```
+    conda install -c anaconda spyder
+    ```
+    ```
+    conda install -c conda-forge jupyterlab
+    ```
 
 ### Step 2: Create Conda virtual environment for fibphoflow
 - Open your [Terminal](https://cs.colby.edu/maxwell/courses/tutorials/terminal/)

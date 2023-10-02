@@ -10,7 +10,6 @@ Created on Fri Aug 21 13:33:46 2020
 #look at https://github.com/LernerLab/GuPPy/blob/main/GuPPy/savingInputParameters.ipynb
 
 
-
 import tdt
 import numpy as np
 from scipy.ndimage.filters import uniform_filter1d, median_filter
@@ -31,8 +30,12 @@ def time2sec(time):
     return seconds
 
        
-def xlsx2dataframe(xlsx_file, path=os.getcwd(), sheet_list=False):
-    """Sheets should just be an index"""
+def xlsx2dataframe(xlsx_file, path=None, sheet_list=False):
+    """Sheets should just be an index. path=os.getcwd() is probably wha tyou want to default to"""
+    
+    if path is None:
+        path = os.getcwd()
+        
     for root, dirs, files in os.walk(path, topdown=True): #maybe add path option here for raw recordings    
         if xlsx_file in files:
             path_xlsx = r"{}".format(root + "/" + xlsx_file)
@@ -87,7 +90,8 @@ def generate_recording(file_path, mouse_channel, channel_config, down_hz, smooth
         trace_raw = data.streams[color_channel].data
         raw_hz = data.streams[color_channel].fs
         
-        trace_smooth = uniform_filter1d(trace_raw, size=smoothing_window*(1000)) #rolling mean filter
+        #trace_smooth = uniform_filter1d(trace_raw, size=smoothing_window*(1000)) #rolling mean filter
+        trace_smooth = median_filter(trace_raw, size=smoothing_window*(1000))
         trace_final = trace_smooth[0:(len(trace_smooth)-1):int(raw_hz/down_hz)]
         
         if count == 0:
@@ -102,12 +106,16 @@ def generate_recording(file_path, mouse_channel, channel_config, down_hz, smooth
 
 
 
-def extract_experiment(exp_df, channel_config, hdf5_name, xlsx_path=os.getcwd(), hdf5_path=os.getcwd(), down_hz=1):
+def extract_experiment(exp_df, channel_config, hdf5_name, xlsx_path=None, hdf5_path=None, down_hz=1):
     """Recording files refer to the TDT folders that have the recording files within."""
     
     # xlsx_name argument
     # xlsx_file = "\\" + xlsx_name + ".xlsx"
     # exp_df = xlsx2dataframe(xlsx_file, xlsx_path)
+    if xlsx_path is None:
+        xlsx_path = os.getcwd()
+    if hdf5_path is None:
+        hdf5_path = os.getcwd()
     
     hdf5_name = hdf5_name + ".h5" 
     hdf5_title = "Photometry Data: " + hdf5_name
@@ -124,7 +132,7 @@ def extract_experiment(exp_df, channel_config, hdf5_name, xlsx_path=os.getcwd(),
     print("")                   
     if len(missing_hdf5recordings.keys()) > 0: #if greater than 0 it means there are missing recordings
         raw_recordings_paths = {}
-        for root, dirs, files in os.walk(os.getcwd(), topdown=True): #maybe add path option here for raw recordings
+        for root, dirs, files in os.walk(xlsx_path, topdown=True): #maybe add path option here for raw recordings
             if "StoresListing.txt" in files:
                 recording_file = root.split("\\")[-1]
                 if recording_file in missing_hdf5recordings.keys(): #tells you if recordings not in hdf5 file but is in a path that can be uploaded
@@ -176,7 +184,6 @@ def extract_experiment(exp_df, channel_config, hdf5_name, xlsx_path=os.getcwd(),
                 print("Adding " + identity + " downsampled to " + str(down_hz) + "hz")
                 print("from group " + recording_group_name)
                 recording_data = generate_recording(recording_path, mouse_channel, channel_config, down_hz)
-                #recording_data = generate_recording(recording_path, mouse_channel, channel_config, down_hz)
                 print("")
                 
                 recording_group = hdf5_file.create_group("/", str(identity), "")
@@ -204,34 +211,6 @@ def extract_experiment(exp_df, channel_config, hdf5_name, xlsx_path=os.getcwd(),
             
     hdf5_file.close()
     
-    return recordings_dict
-
-
-
-def group_extraction(exp_df, group_recordings_path, down_hz=1):
-    # group_path = i.e. r"C:\Users\nwh5j\LocalDesktop\Box Sync\Photometry Data\Nik"
-    # downsampling is in hz
-    recordings_dict = {}
-    
-    something_missing = False   
-
-    for identity, row in exp_df.iterrows():
-        file = row["File"]   
-        if file not in os.listdir(group_recordings_path):
-            print("Missing: " + file + " from " + row["Group"] + ": " + row["Date"])
-            something_missing = True
-    if something_missing == True:
-        print("Include missing files and rerun")
-        return None  
-    else:
-        print("All files present")  
-                
-    for identity, row in exp_df.iterrows():
-        file = row["File"]       
-        path = os.path.join(group_recordings_path, file)
-        mouse_channel = row["Channel"]
-        recording = generate_recording(path, mouse_channel, down_hz)
-        recordings_dict[identity] = recording
     return recordings_dict
 
 
@@ -397,7 +376,7 @@ def inspect_recordings(exp_df, r_epoch_dict, show=True):
 
 
 
-def average_epochs(sub_df, epoch_dict, epoch_list):
+def average_epochs(sub_df, epoch_dict, epoch_list, channel = "gcamp_isocorr"):
     """Takes epochs and for each situation where a mouse has two recordings for one "group""
     experimental condition, it will average them together. For example, if there are a number
     of PBS traces. Returns a new epoch dict along with a data frame to be used for the graphing"""
@@ -406,6 +385,7 @@ def average_epochs(sub_df, epoch_dict, epoch_list):
     group_mouse_means_df.insert(1, "Mouse",'')
     list1 = list(sub_df.index)
     list2 = list(epoch_dict.keys())
+    channel_dict = {"gcamp_isocorr":0, "gcamp":1, "isos":2}   #consider renaming channel, since two different meanings appear in codebase
     epoch_dict_averaged = {} #averages same mice within each group
     for epoch in epoch_list:
         epoch_dict_averaged[epoch[0]] = epoch_dict_averaged.get(epoch[0], {}) 
@@ -425,8 +405,8 @@ def average_epochs(sub_df, epoch_dict, epoch_list):
                     epoch_dict_averaged[epoch_name][group] = epoch_dict_averaged[epoch_name].get(group, {})
                     epoch_dict_averaged[epoch_name][group][mouse] = epoch_dict_averaged[epoch_name][group].get(mouse, [])
                     for identity in list2collate:
-                        traces =  epoch_dict[identity][epoch_name][0][0]
-                        trace_list.append(traces)
+                        traces =  epoch_dict[identity][epoch_name][0][channel_dict[channel]] #modified this from 0
+                        trace_list.append(traces[0:2]) #includes just time and deltaff traces
                     time_vec, mean_of_traces, stderr_of_traces = collate_traces(trace_list)
                     epoch_dict_averaged[epoch_name][group][mouse] = [time_vec, mean_of_traces]   
             for identity in list2collate:
@@ -654,7 +634,7 @@ def plot_averagedepochs(avg_epoch_dict, groups2compare):
                 time_axis, mean_trace, stderr_trace = collate_traces(traces_data)  
                 group_trace_plt.plot(time_axis, mean_trace, linewidth=1, label="Mean Trace + Std.Error", color="darkcyan")
                 group_trace_plt.fill_between(time_axis, mean_trace+stderr_trace, mean_trace-stderr_trace, alpha=0.4, color="salmon")  
-                group_trace_plt.legend(loc="lower left", fontsize="medium", shadow=True)
+                group_trace_plt.legend(loc="lower right", fontsize="medium", shadow=True)
                 
                 group_traces_plt.plot(time_axis, mean_trace, linewidth=1, label=group_name)
                 group_traces_plt.fill_between(time_axis, mean_trace+stderr_trace, mean_trace-stderr_trace, alpha=0.35)  
@@ -662,7 +642,7 @@ def plot_averagedepochs(avg_epoch_dict, groups2compare):
                 fig2.suptitle((group_name + " (" + epoch_name + ")"), fontsize="30", fontweight="bold")
                 fig2.tight_layout()
             
-            group_traces_plt.legend(loc="lower left", fontsize="large", shadow=True)
+            group_traces_plt.legend(loc="lower right", fontsize="large", shadow=True)
             
             fig3.tight_layout()
 
