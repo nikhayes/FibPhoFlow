@@ -6,11 +6,11 @@ on:
     tags:
       - '*'
     #branches:
-    #  - main
+    #  - mai
 
 jobs:
   build_and_publish:
-    name: Build and publish Python distributions to PyPI
+    name: Build Python distribution
     runs-on: ubuntu-latest
 
     steps:
@@ -39,11 +39,22 @@ jobs:
         #    --wheel
         #    --outdir dist/
         #    .
-
-      - name: Publish distribution 📦 to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
+  pypi-publish:
+    name: Upload release to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/fibphoflow
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+    steps:
+    # retrieve your distributions here
+    - name: Publish package distributions to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      #- name: Publish distribution 📦 to PyPI
+      #  uses: pypa/gh-action-pypi-publish@release/v1
+        #with:
+          #password: ${{ secrets.PYPI_API_TOKEN }}
           #https://pypi.org/p/<your-pypi-project-name>
           #repository-url: https://test.pypi.org/legacy/
 
