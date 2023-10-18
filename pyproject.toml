@@ -12,7 +12,7 @@ dynamic = ["version"]
 readme = "README.md"
 description = "Python package to process and visualize TDT fiber photometry data"
 dependencies = [
-	'importlib_metadata; python_version < "3.8"',
+	'importlib_metadata; python_version < "3.12"',
 	"numpy",
 	"pandas",
 	"seaborn",
