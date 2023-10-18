@@ -47,7 +47,8 @@ jobs:
       name: pypi
       url: https://pypi.org/p/fibphoflow
     permissions:
-      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+      	contents: read
+	id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
     # retrieve your distributions here
     - name: Publish package distributions to PyPI
