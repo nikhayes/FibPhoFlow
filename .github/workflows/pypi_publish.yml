@@ -25,16 +25,13 @@ jobs:
           python -m pip install importlib_metadata numpy pandas seaborn scipy tables tdt xlsxwriter
       - name: Create dist directory
         run: mkdir -p dist      
-      - name: Build package
-        run: >-
-          python -m build --sdist --wheel --outdir dist/ .
-      - name: Rename distribution files
+      - name: Extract version number from tag
+        id: extract_version
         run: |
-         cd dist
-         for file in *.{whl,tar.gz}; do
-           newfile=$(echo $file | sed 's/.dev0+g[0-9a-f]*.d[0-9]*//')
-           mv "$file" "$newfile"
-         done
+        echo "::set-output name=version::${GITHUB_REF#refs/tags/}"
+      - name: Build package
+        run: |
+        python setup.py sdist bdist_wheel --version ${{ steps.extract_version.outputs.version }}
       - name: Upload distribution files
         uses: actions/upload-artifact@v2
         with:
