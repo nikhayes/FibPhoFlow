@@ -27,7 +27,7 @@ jobs:
         run: mkdir -p dist      
       - name: Build package
         run: >-
-          python -m build --sdist --wheel --outdir dist/ . --verbose
+          python -m build --sdist --wheel --outdir dist/ .
       - name: Upload distribution files
         uses: actions/upload-artifact@v2
         with:
