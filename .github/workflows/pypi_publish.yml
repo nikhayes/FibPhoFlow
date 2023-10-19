@@ -28,6 +28,13 @@ jobs:
       - name: Build package
         run: >-
           python -m build --sdist --wheel --outdir dist/ .
+      - name: Rename distribution files
+        run: |
+         cd dist
+         for file in *.{whl,tar.gz}; do
+           newfile=$(echo $file | sed 's/.dev0+g[0-9a-f]*.d[0-9]*//')
+           mv "$file" "$newfile"
+         done
       - name: Upload distribution files
         uses: actions/upload-artifact@v2
         with:
