@@ -12,7 +12,7 @@ dynamic = ["version"]
 readme = "README.md"
 description = "Python package to process and visualize TDT fiber photometry data"
 dependencies = [
-	'importlib_metadata; python_version < "3.12"',
+	'importlib_metadata; python_version >= "3.12"',
 	"numpy",
 	"pandas",
 	"seaborn",
@@ -39,6 +39,10 @@ classifiers = [
 
 [tool.setuptools_scm]
 local_scheme = "no-local-version"
-write_to = "src/_version.py"
+version_scheme = "post-release"
+#write_to = "src/_version.py"
+
+[tool.setuptools.dynamic]
+version = { attr = "setuptools_scm.get_version" }
 
 # https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#license
