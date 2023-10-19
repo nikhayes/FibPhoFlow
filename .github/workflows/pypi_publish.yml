@@ -28,10 +28,10 @@ jobs:
       - name: Extract version number from tag
         id: extract_version
         run: |
-        echo "::set-output name=version::${GITHUB_REF#refs/tags/}"
+         echo "::set-output name=version::${GITHUB_REF#refs/tags/}"
       - name: Build package
         run: |
-        python setup.py sdist bdist_wheel --version ${{ steps.extract_version.outputs.version }}
+         python setup.py sdist bdist_wheel --version ${{ steps.extract_version.outputs.version }}
       - name: Upload distribution files
         uses: actions/upload-artifact@v2
         with:
