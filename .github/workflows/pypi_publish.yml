@@ -33,9 +33,16 @@ jobs:
          echo "::set-output name=version::${GITHUB_REF#refs/tags/}"
       - name: Build package
         run: |
-         python -m build --sdist --wheel --outdir dist/ . --version ${{ steps.extract_version.outputs.version }} --verbose
-      - name: List contents of dist folder
-        run: ls -l dist
+         python -m build --sdist --wheel --outdir dist/ . --version ${{ steps.extract_version.outputs.version }} --verbose > build_output.txt 2>&1
+      - name: Display build output
+        run: cat build_output.txt
+
+      - name: List directory contents
+        run: |
+          echo "Listing contents of dist directory:"
+          ls -lR dist
+          echo "Listing contents of current directory:"
+          ls -l
       - name: Upload distribution files
         uses: actions/upload-artifact@v3
         with:
