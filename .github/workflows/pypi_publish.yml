@@ -23,8 +23,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install setuptools wheel twine build
           python -m pip install importlib_metadata numpy pandas seaborn scipy tables tdt xlsxwriter
-      #- name: Create dist directory
-      #  run: mkdir -p dist      
+      - name: Create dist directory
+        run: mkdir -p dist      
       - name: Print Working Directory
         run: pwd  # This command prints the current working directory
       - name: List directories
