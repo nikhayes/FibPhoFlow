@@ -37,9 +37,10 @@ jobs:
          echo "::set-output name=version::${GITHUB_REF#refs/tags/}"
       - name: Build package
         run: |
-         python -m build --sdist --wheel --version ${{ steps.extract_version.outputs.version }} --verbose > build_output.txt 2>&1
-      - name: Display build output
-        run: cat build_output.txt
+         #python -m build --sdist --wheel --version ${{ steps.extract_version.outputs.version }} --verbose > build_output.txt 2>&1
+         python -m build --sdist --wheel
+      #- name: Display build output
+      #  run: cat build_output.txt
 
       - name: List directory contents
         run: |
