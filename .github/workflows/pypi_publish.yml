@@ -29,8 +29,8 @@ jobs:
         run: pwd  # This command prints the current working directory
       - name: List directories
         run: |
-        echo "Listing directories in current working directory:"
-        ls -d */
+         echo "Listing directories in current working directory:"
+         ls -d */
       - name: Extract version number from tag
         id: extract_version
         run: |
