@@ -32,8 +32,10 @@ jobs:
       - name: Build package
         run: |
          python -m build --sdist --wheel --outdir dist/ . --version ${{ steps.extract_version.outputs.version }}
+      - name: List contents of dist folder
+        run: ls -l dist
       - name: Upload distribution files
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: dist
           path: dist
