@@ -1,0 +1,17 @@
+name: fibphoflow_venv
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - pip
+  - numpy
+  - pandas
+  - h5py
+  - pytables
+  - matplotlib
+  - seaborn
+  - scipy
+  - xlsxwriter
+  - openpyxl
+  - pip:
+    - tdt
