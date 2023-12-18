@@ -21,7 +21,7 @@ This package is currently available on [PyPi](https://test.pypi.org/project/fibp
 - Download this repository or a Github release of this repository following [these instructions](https://blog.hubspot.com/website/download-from-github#repository)
 - Open your [Terminal](https://cs.colby.edu/maxwell/courses/tutorials/terminal/)
 - Feel free to move the downloaded Github folder and rename
-- Navigate to the folder using your Terminal application
+- Navigate to the folder using your Terminal
 ```
 cd path/to/<folder_name>
 ```
