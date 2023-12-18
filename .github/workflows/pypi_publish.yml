@@ -58,17 +58,17 @@ jobs:
     needs: build_and_publish
     name: Upload release to PyPI
     runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/project/fibphoflow
+    #environment:
+    #  name: pypi
+    #  url: https://pypi.org/project/fibphoflow
     permissions:
         contents: read
         id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
     steps: # retrieve your distributions here
       - name: Download distribution files
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
-          name: dist
-          path: dist
+          name: python-package-distributions
+          path: dist/
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
