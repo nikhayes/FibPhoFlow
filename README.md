@@ -18,32 +18,38 @@ This package is currently available on [PyPi](https://test.pypi.org/project/fibp
     ```
 
 ### Step 2: Create Conda virtual environment for fibphoflow
+- Download this repository or a Github release of this repository following [these instructions](https://blog.hubspot.com/website/download-from-github#repository)
 - Open your [Terminal](https://cs.colby.edu/maxwell/courses/tutorials/terminal/)
-- Create a folder somewhere (i.e. desktop) to launch Conda environment
+- Feel free to move the downloaded Github folder and rename
+- Navigate to the folder using your Terminal application
 ```
-mkdir folder_name
+cd path/to/<folder_name>
 ```
-```
-cd folder_name
-```
-- Right click save [this Anaconda virtual environment (venv) file](https://raw.githubusercontent.com/nikhayes/fibphoflow/main/src/environment.yml) into your folder
-- While in the folder you created, create the Conda venv (includes needed package dependences)
+- Once in the folder you created, create a Conda virtual environnment (aka 'venv' which includes needed package dependences)
 ```
 conda env create -f environment.yml
 ```
-- Activate Conda venv
+- Activate this Conda venv
 ```
 conda activate fibphoflow_venv
 ```
-- For more information on general conda venv usage, [see here](environments.html#activating-an-environment)
+- Note: For more information on general conda venv usage, [see here](environments.html#activating-an-environment)
 
-### Step 3: Connect the Conda venv with your IDE
-- Configure your venv with Spyder or Jupyter [with these instructions](https://medium.com/@apremgeorge/using-conda-python-environments-with-spyder-ide-and-jupyter-notebooks-in-windows-4e0a905aaac5)  
+### Step 3: Connect the Conda venv with your IDE and run the IDE
+- Configure your venv with the IDE's Spyder or Jupyter [with these instructions](https://medium.com/@apremgeorge/using-conda-python-environments-with-spyder-ide-and-jupyter-notebooks-in-windows-4e0a905aaac5)  
+- Alternatively, you can install an IDE into your venv with:
+```
+conda install <IDE Name>
+```
+```
+<IDE Name>
+```
 
+### Step 4: Modify tutorial_project.py to your own workflow
+- The simplest way to run Fibphoflow until a Python package is eventually developed is to move all TdT photometry recordings to a directory where the parent folder contains tutorial_project.py (later to be renamed to whatever you want), Excel files where you store metadata for your traces (example tutorial_project.xlsx file included in downloaded repository), the fibphoflow.py file which is in the src subdirectory of the downloaded repository, and the fibphoflow_config.py file also in src. You can organize your recordings into subfolders within this parent folder and Fibphoflow will search those subdirectories.
+- In your IDE, your working directory needs to be set to the path of the parent folder to be able to read the files mentioned above (there are other ways of doing this if you know Python better, but for simplicity just do this).
 
 ## Overview of Workflow
-
-* Note that a well documented practice analysis walkthrough will be added soon.
 
 1. The raw fiber photometry data streams from TdT photometry recording directories are loaded using the TdT python package. TdT recording files need to be located in the working directory or its subdirectories for them to be located while running fibphoflow.py. The script is currently only compatible with a GCaMP and UV/Isosbestic stream.
 
@@ -51,14 +57,14 @@ conda activate fibphoflow_venv
 
 3. The streams (GCaMP and UV) are downsampled based on the hz value one sets.
 
-4. A normalization of the calcium stream is performed using the isosbestic stream
+4. A normalization of the calcium stream is performed using the isosbestic stream, but this is optional and it is possible for the calcium and isosbestic traces to just be normalized to themselves.
 
 5. From here, based on the experimental metadata found in the experiment's excel file, the processed streams from step 3 are chopped up into specific "epoch" traces for analysis and these traces are normalized to user-defined recording baseline periods to obtain traces in terms of delta F/F.
 
 
 ## To-do's
 
-1. Fix package dependency issues and allow for download with conda-forge
+1. Fix package dependency issues and allow for download with conda-forge and PyPi
 
 2. Add option for butterworth low pass filtering step.
 
