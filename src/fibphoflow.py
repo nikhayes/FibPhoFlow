@@ -16,6 +16,8 @@ from scipy.ndimage.filters import uniform_filter1d, median_filter
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib as mpl
 from math import sqrt
 import time
 import re
@@ -24,7 +26,7 @@ import xlsxwriter
 
 
 def time2sec(time):
-    #input is a string: "h,m,s" i.e. "0,2,3"
+    """ Input is a string in the format: "h,m,s" i.e. "0,2,3" """
     time = [int(x) for x in time.split(',')]
     seconds = (time[0] * 60**2) + (time[1] * 60) + time[2]
     return seconds
@@ -74,13 +76,12 @@ def xlsx2dataframe(xlsx_file, path=None, sheet_list=False):
 
     
 
-def generate_recording(file_path, mouse_channel, channel_config, down_hz, smoothing_window=1):
+def generate_recording(file_path, mouse_channel, channel_config, down_hz, smoothing_method="moving avg", smoothing_window=1):
     """TDT formatting: https://www.tdt.com/docs/sdk/offline-data-analysis/offline-data-python/00_Intro/"""
     
     data = tdt.read_block(file_path)
     
-    data_channels = set(data.streams.keys()) 
-     
+    data_channels = set(data.streams.keys())
     processed_traces = []
     for count, i in enumerate(channel_config["colors"]):
 
@@ -90,8 +91,13 @@ def generate_recording(file_path, mouse_channel, channel_config, down_hz, smooth
         trace_raw = data.streams[color_channel].data
         raw_hz = data.streams[color_channel].fs
         
-        #trace_smooth = uniform_filter1d(trace_raw, size=smoothing_window*(1000)) #rolling mean filter
-        trace_smooth = median_filter(trace_raw, size=smoothing_window*(1000))
+        if smoothing_method == "moving avg":
+            trace_smooth = uniform_filter1d(trace_raw, size=smoothing_window*(1000)) #rolling mean filter
+        elif smoothing_method == "median": # median filter algo is slower
+            trace_smooth = median_filter(trace_raw, size=smoothing_window*(1000))
+        else:
+            trace_smooth = trace_raw
+            
         trace_final = trace_smooth[0:(len(trace_smooth)-1):int(raw_hz/down_hz)]
         
         if count == 0:
@@ -100,7 +106,7 @@ def generate_recording(file_path, mouse_channel, channel_config, down_hz, smooth
             
         processed_traces.append(trace_final)
     
-    #to do: make it channel agnostic. For now time_vec, gcamp470, isos405 order should stay the same
+    # *** to do: make it channel agnostic. For now time_vec, gcamp470, isos405 order should stay the same
     
     return processed_traces
 
@@ -109,9 +115,6 @@ def generate_recording(file_path, mouse_channel, channel_config, down_hz, smooth
 def extract_experiment(exp_df, channel_config, hdf5_name, xlsx_path=None, hdf5_path=None, down_hz=1):
     """Recording files refer to the TDT folders that have the recording files within."""
     
-    # xlsx_name argument
-    # xlsx_file = "\\" + xlsx_name + ".xlsx"
-    # exp_df = xlsx2dataframe(xlsx_file, xlsx_path)
     if xlsx_path is None:
         xlsx_path = os.getcwd()
     if hdf5_path is None:
@@ -119,98 +122,98 @@ def extract_experiment(exp_df, channel_config, hdf5_name, xlsx_path=None, hdf5_p
     
     hdf5_name = hdf5_name + ".h5" 
     hdf5_title = "Photometry Data: " + hdf5_name
-    hdf5_file = tb.open_file(hdf5_name, 'a', title = hdf5_title)  
+    
+    with tb.open_file(hdf5_name, 'a', title=hdf5_title) as hdf5_file:
       
-    missing_hdf5recordings_bool = False
-    missing_hdf5recordings = {}
-
-    for identity, row in exp_df.iterrows():
-        recording_file = row["File"]   
-        if ("/" + identity) not in hdf5_file:
-            missing_hdf5recordings[recording_file] = missing_hdf5recordings.get(recording_file, [])
-            missing_hdf5recordings[recording_file].append(identity)
-    print("")                   
-    if len(missing_hdf5recordings.keys()) > 0: #if greater than 0 it means there are missing recordings
-        raw_recordings_paths = {}
-        for root, dirs, files in os.walk(xlsx_path, topdown=True): #maybe add path option here for raw recordings
-            if "StoresListing.txt" in files:
-                recording_file = root.split("\\")[-1]
-                if recording_file in missing_hdf5recordings.keys(): #tells you if recordings not in hdf5 file but is in a path that can be uploaded
-                    path = root
-                    raw_recordings_paths[recording_file] = path
-                    
-        missing_raw_recordings_bool = False # *** Change this to set intersection
-        for recording_file, identities in missing_hdf5recordings.items():
-            if recording_file not in raw_recordings_paths.keys(): 
-                missing_raw_recordings_bool = True  
-                
-        if missing_raw_recordings_bool == True:  # *** Change this to set intersection                        
-            print(hdf5_name + " is missing recordings which it needs to be up to date based on excel data sheet.\n")
-            print("The recordings that are not in working directory or subfolders:") 
+        missing_hdf5recordings_bool = False
+        missing_hdf5recordings = {}
+    
+        for identity, row in exp_df.iterrows():
+            recording_file = row["File"]   
+            if ("/" + identity) not in hdf5_file:
+                missing_hdf5recordings[recording_file] = missing_hdf5recordings.get(recording_file, [])
+                missing_hdf5recordings[recording_file].append(identity)
+        print("")                   
+        if len(missing_hdf5recordings.keys()) > 0: #if greater than 0 it means there are missing recordings
+            raw_recordings_paths = {}
+            for root, dirs, files in os.walk(xlsx_path, topdown=True): #maybe add path option here for raw recordings
+                if "StoresListing.txt" in files:
+                    recording_file = os.path.split(root)[-1]
+                    if recording_file in missing_hdf5recordings.keys(): #tells you if recordings not in hdf5 file but is in a path that can be uploaded
+                        path = root
+                        raw_recordings_paths[recording_file] = path
+                        
+            missing_raw_recordings_bool = False # *** Change this to set intersection
             for recording_file, identities in missing_hdf5recordings.items():
-                if recording_file not in raw_recordings_paths.keys():
-                    print(recording_file) 
-            print("")            
-            question_continue = "Do you want to continue? Enter y or n: "
-            answer_continue = input(question_continue)
-            if answer_continue == "y":
+                if recording_file not in raw_recordings_paths.keys(): 
+                    missing_raw_recordings_bool = True  
+                    
+            if missing_raw_recordings_bool == True:  # *** Change this to set intersection                        
+                print(hdf5_name + " is missing recordings which it needs to be up to date based on excel data sheet.\n")
+                print("The recordings that are not in working directory or subfolders:") 
+                for recording_file, identities in missing_hdf5recordings.items():
+                    if recording_file not in raw_recordings_paths.keys():
+                        print(recording_file) 
+                print("")            
+                question_continue = "Do you want to continue? Enter y or n: "
+                answer_continue = input(question_continue)
+                if answer_continue == "y":
+                    pass
+                elif answer_continue == "n":
+                    hdf5_file.close()
+                    return None
+                else:
+                    print("Input should be y or n")
+                    hdf5_file.close()
+                    return None
+            
+            if len(missing_hdf5recordings.keys()) > 0:                   
+                print("Based on xlsx data sheet " + hdf5_name + " is missing these recordings which are ready to be added: ") 
+                recordings_2b_added = set()
+                for recording_file, identities in missing_hdf5recordings.items():
+                    if recording_file in raw_recordings_paths.keys(): 
+                        recordings_2b_added.update(identities) 
+                        print(" and ".join(identities))  
+                
+                question_hdf5_update = "Update " + hdf5_name + " to include recordings? Enter y or n: "
+                answer_hdf5_update = input(question_hdf5_update)
+                print("")
+    
+            if answer_hdf5_update == "y":
+                for identity in recordings_2b_added:
+                    recording_name = str(exp_df.loc[identity]["File"]) #this appeared as a pandas.core.series.Series in a certain instance why??
+                    recording_group_name = exp_df.loc[identity]["Group"]
+                    recording_path = raw_recordings_paths[recording_name]       
+                    mouse_channel = exp_df.loc[identity]["Channel"]
+                    print("Adding " + identity + " downsampled to " + str(down_hz) + "hz")
+                    print("from group " + recording_group_name)
+                    recording_data = generate_recording(recording_path, mouse_channel, channel_config, down_hz)
+                    print("")
+    
+                    recording_group = hdf5_file.create_group("/", str(identity), "")
+                    recording_group._v_attrs.identity = identity
+                    recording_group._v_attrs.group = recording_group_name
+                    hdf5_file.create_array(recording_group, "timevec", recording_data[0], ("Time vector " + str(down_hz) + "hz"))
+                    hdf5_file.create_array(recording_group, "gcamp470", recording_data[1], ("Gcamp470 " + str(down_hz) + "hz"))
+                    hdf5_file.create_array(recording_group, "isos405", recording_data[2], ("Isos405 " + str(down_hz) + "hz"))
+                    #except:
+                    #    return recording_data
+            elif answer_hdf5_update == "n":
                 pass
-            elif answer_continue == "n":
-                hdf5_file.close()
-                return None
             else:
                 print("Input should be y or n")
-                hdf5_file.close()
-                return None
-        
-        if len(missing_hdf5recordings.keys()) > 0:                   
-            print("Based on xlsx data sheet " + hdf5_name + " is missing these recordings which are ready to be added: ") 
-            recordings_2b_added = set()
-            for recording_file, identities in missing_hdf5recordings.items():
-                if recording_file in raw_recordings_paths.keys(): 
-                    recordings_2b_added.update(identities) 
-                    print(" and ".join(identities))  
-            
-            question_hdf5_update = "Update " + hdf5_name + " to include recordings? Enter y or n: "
-            answer_hdf5_update = input(question_hdf5_update)
-            print("")
-
-        if answer_hdf5_update == "y":
-            for identity in recordings_2b_added:
-                recording_name = str(exp_df.loc[identity]["File"]) #this appeared as a pandas.core.series.Series in a certain instance why??
-                recording_group_name = exp_df.loc[identity]["Group"]
-                recording_path = raw_recordings_paths[recording_name]       
-                mouse_channel = exp_df.loc[identity]["Channel"]
-                print("Adding " + identity + " downsampled to " + str(down_hz) + "hz")
-                print("from group " + recording_group_name)
-                recording_data = generate_recording(recording_path, mouse_channel, channel_config, down_hz)
-                print("")
                 
-                recording_group = hdf5_file.create_group("/", str(identity), "")
-                recording_group._v_attrs.identity = identity
-                recording_group._v_attrs.group = recording_group_name
-                hdf5_file.create_array(recording_group, "timevec", recording_data[0], ("Time vector " + str(down_hz) + "hz"))
-                hdf5_file.create_array(recording_group, "gcamp470", recording_data[1], ("Gcamp470 " + str(down_hz) + "hz"))
-                hdf5_file.create_array(recording_group, "isos405", recording_data[2], ("Isos405 " + str(down_hz) + "hz"))
-                       
-        elif answer_hdf5_update == "n":
-            pass
         else:
-            print("Input should be y or n")
-            
-    else:
-        print("All recordings present in " + hdf5_name)
-    
-    recordings_dict = {}
-    
-    for rec_identity in hdf5_file.walk_groups():
-        if "identity" in rec_identity._v_attrs:
-            recordings_dict[rec_identity._v_attrs.identity] = (rec_identity.timevec.read(), 
-                                                               rec_identity.gcamp470.read(), 
-                                                               rec_identity.isos405.read())
-            
-    hdf5_file.close()
-    
+            print("All recordings present in " + hdf5_name)
+        
+        recordings_dict = {}
+        
+        for rec_identity in hdf5_file.walk_groups():
+            if "identity" in rec_identity._v_attrs:
+                recordings_dict[rec_identity._v_attrs.identity] = (rec_identity.timevec.read(), 
+                                                                   rec_identity.gcamp470.read(), 
+                                                                   rec_identity.isos405.read())
+                
     return recordings_dict
 
 
@@ -241,7 +244,7 @@ def extract_intervention(full_recording, start_time, experiment_len, deltapercen
             formatted_time_vec = np.linspace(-(buff_len + buff_offset)/(60 * sampling_hz), experiment_len/(60 * sampling_hz), num=len(extracted_trace))
             mean2normalize2 = np.mean(trace[(start_time - buff_len - buff_offset):(start_time - buff_offset)])
             trace_norm = (extracted_trace / mean2normalize2) - 1
-            if deltapercent == True: #****
+            if deltapercent == True:
                 trace_norm = trace_norm * 100 
             trace_data = (formatted_time_vec, trace_norm, extracted_trace)
             extracted_traces.append(trace_data)
@@ -320,7 +323,7 @@ def group_epochs_extraction(exp_df, recordings_dict, epoch_list, sampling_hz=1, 
                 reverse_epoch_dict[epoch_name] = reverse_epoch_dict.get(epoch_name, {})
                 reverse_epoch_dict[epoch_name][identity] = reverse_epoch_dict[epoch_name].get(identity, {})
                 reverse_epoch_dict[epoch_name][identity] = (epoch_trace, epoch_start)
-                #sorted(reverse_epoch_dict.items(), key=exp_df.loc[reverse_epoch_dict.keys(), "Mouse"])
+
     return epoch_dict, reverse_epoch_dict
 
 
@@ -357,10 +360,7 @@ def inspect_recordings(exp_df, r_epoch_dict, show=True):
                 epoch_start = time2sec(epoch_data[identity][1])
                 deltaF_plt.axvline(x=(epoch_start-full_start)/60, color = "maroon", linestyle="--", zorder=1)    
         deltaF_plt.axhline(y=0, color = "k", linestyle="-", linewidth=1, zorder=1)
-        # deltaF_plt.axhline(y=-0.25, color = "k", linestyle="-", linewidth=1)
-    
-        #deltaF_plt.yaxis.grid(which="major", color='k', linestyle='--', linewidth=0.5)
-        #deltaF_plt.axhline(y=-0.2, linestyle="--")
+
         group = str(exp_df.loc[identity, "Group"])        
         mouse = str(exp_df.loc[identity, "Mouse"])
         date = exp_df.loc[identity, "Date"]
@@ -431,7 +431,6 @@ def averagedepochs_to_excel(excel_name, epoch_dict_averaged, groups2compare):
                     column_content.extend(epoch_trace[0])
                     worksheet.write_column(0, n, column_content)
                     n = n + 1
-                #had an else below before
                 column_content = [exp_group_name, mouse_name]
                 column_content.extend(epoch_trace[1])
                 worksheet.write_column(0, n, column_content)
@@ -498,7 +497,7 @@ def average_window(epoch_dict_averaged, groups2compare, epoch_name, start_minute
 
 
 
-def fig2_epochs_plt(exp_df, reverse_epoch_dict, groups2compare, exp_df_column="Group", deltapercent=True):
+def plot_epochs(exp_df, reverse_epoch_dict, groups2compare, exp_df_column="Group", deltapercent=True):
     """Group legend follows order in groups2compare. group_traces is for the main graph
     comparing all groups whereas group_trace is for the within group graphs."""  
     for epoch_name, identities in reverse_epoch_dict.items():
@@ -539,10 +538,6 @@ def fig2_epochs_plt(exp_df, reverse_epoch_dict, groups2compare, exp_df_column="G
                     traces_data.append(trace_data)
                     time_axis, trace = trace_data
                     individual_traces_plt.plot(time_axis, trace, linewidth=0.8, label=exp_df.loc[identity,"Mouse"])
-                
-                
-                #handles,labels = individual_traces_plt.get_legend_handles_labels()
-                #handles,labels = sorted(zip(handles,labels), key=labels) #sorts labels in alphabetical/numerical order, not in order because came out of dict
 
                 individual_traces_plt.legend(loc="lower left", fontsize="medium", shadow=True)
                 individual_traces_plt.axes.get_xaxis().set_visible(False)
@@ -564,7 +559,7 @@ def fig2_epochs_plt(exp_df, reverse_epoch_dict, groups2compare, exp_df_column="G
 
 
 
-def fig3_permouse_interventioncompare(exp_df, reverse_epoch_dict, groups2compare, mice2plot, exp_df_column="Group"):
+def plot_permouse_interventioncompare(exp_df, reverse_epoch_dict, groups2compare, mice2plot, exp_df_column="Group"):
        
     for mouse in mice2plot:   
         for epoch_name, identities in reverse_epoch_dict.items():
@@ -624,10 +619,6 @@ def plot_averagedepochs(avg_epoch_dict, groups2compare):
                     time_axis, trace = trace_data
                     individual_traces_plt.plot(time_axis, trace, linewidth=0.8, label=mouse)
                 
-                
-                #handles,labels = individual_traces_plt.get_legend_handles_labels()
-                #handles,labels = sorted(zip(handles,labels), key=labels) #sorts labels in alphabetical/numerical order, not in order because came out of dict
-    
                 individual_traces_plt.legend(loc="lower left", fontsize="medium", shadow=True)
                 individual_traces_plt.axes.get_xaxis().set_visible(False)
                             
@@ -645,6 +636,118 @@ def plot_averagedepochs(avg_epoch_dict, groups2compare):
             group_traces_plt.legend(loc="lower right", fontsize="large", shadow=True)
             
             fig3.tight_layout()
+            
+
+
+
+def plot_averagedepochs_with_heat(epochs, avg_epoch_dict, groups2compare, heatmap_dim, my_cmap=None):
+    """Group legend follows order in groups2compare"""  
+    for epoch_name, groups in avg_epoch_dict.items():
+        if epoch_name in epochs.keys():
+            group_epoch_dict = {}
+            for group, mice in groups.items():
+                if group in groups2compare:
+                    for mouse, trace_data in mice.items():
+                        group_epoch_dict[group] = group_epoch_dict.get(group, [])
+                        group_epoch_dict[group].append((mouse, trace_data)) 
+    
+            all_groups_plt = plt.figure(figsize=(15,12))
+            all_groups_plt.suptitle(epoch_name, fontsize="30", fontweight="bold")
+            group_traces_plt = all_groups_plt.add_subplot(211)
+            group_traces_plt.set_ylabel(r'$\Delta$F/F %', fontsize="x-large")
+            group_traces_plt.set_xlabel("Minutes", fontsize="x-large")
+    
+            for group_name, traces_info in group_epoch_dict.items():
+                
+                fig2 = plt.figure(figsize=(15,12))
+                individual_traces_plt = fig2.add_subplot(211)
+                group_trace_plt = fig2.add_subplot(212)
+                group_trace_plt.set_ylabel(r'$\Delta$F/F %', fontsize="x-large")
+                group_trace_plt.set_xlabel("Minutes", fontsize="x-large")
+                
+                mice_list = []
+                traces_data = []
+                for mouse, trace_data in traces_info:
+                    mice_list.append(mouse)
+                    traces_data.append(trace_data)
+                    time_axis, trace = trace_data
+                    individual_traces_plt.plot(time_axis, trace, linewidth=0.8, label=mouse)
+                
+                traces_fluorescence = [trace for time_axis, trace in traces_data]
+                             
+                time_axis = traces_data[0][0]
+                fig_width = heatmap_dim[0]
+                fig_height = heatmap_dim[1] #len(traces_fluorescence)
+                fig_heattraces = plt.figure(figsize=(fig_width, (fig_height))) #fig_heattraces = plt.figure(figsize=(15,3))
+                spec_heattraces = gridspec.GridSpec(ncols=fig_width, nrows=len(traces_fluorescence) + 2,
+                                                    wspace=0, hspace=0, figure=fig_heattraces)
+                
+                row = 0
+                subplot_dict = {}
+                
+                for trace in traces_fluorescence:
+                    trace = np.expand_dims(trace, axis=0)
+                    subplot_dict[row] = fig_heattraces.add_subplot(spec_heattraces[row, 0:])
+                    if row != len(traces_fluorescence) - 1: #last row you want ticks
+                        subplot_dict[row].tick_params(
+                            axis='both',          # changes apply to the x-axis
+                            which='both',      # both major and minor ticks are affected
+                            bottom=False,      # ticks along the bottom edge are off
+                            top=False,         # ticks along the top edge are off
+                            left=True,
+                            labelleft=True,
+                            labelbottom=False  # labels along the bottom edge are off)
+                        )
+                                     
+                    elif row == len(traces_fluorescence) - 1: 
+                        subplot_dict[row].tick_params(
+                            axis='x',          # changes apply to the x-axis
+                            which='both',      # both major and minor ticks are affected
+                            bottom=True,       # ticks along the bottom edge are off
+                            top=False,         # ticks along the top edge are off
+                            labelbottom=True,  # labels along the bottom edge are off
+                            labelsize=30
+                        )
+                        
+                    vmax = epochs[epoch_name][0]
+                    vmin = epochs[epoch_name][1]
+                    norm_exp = mpl.colors.Normalize(vmin=vmin, vmax=vmax)     
+
+                    aspect = "auto"
+                    
+                    subplot_dict[row].imshow(trace, norm=norm_exp, cmap = my_cmap, interpolation='bicubic', aspect=aspect,
+                                       extent =[time_axis[0], time_axis[-1], (-10 * 1/len(traces_fluorescence)), (10 * 1/len(traces_fluorescence))])
+
+                    subplot_dict[row].get_yaxis().set_visible(False)
+                    row = row + 1
+                
+
+                cbarax = fig_heattraces.add_subplot(spec_heattraces[-1, int(fig_width/4) :int(fig_width*3/4)])                 
+                cbar = fig_heattraces.colorbar(mpl.cm.ScalarMappable(norm=norm_exp, cmap=my_cmap), cax=cbarax, orientation="horizontal") #use_gridspec=True
+                cbarax.tick_params(labelsize=20)
+
+                fig_heattraces.tight_layout(pad=0)
+              
+                individual_traces_plt.legend(loc="lower left", fontsize="medium", shadow=True)
+                individual_traces_plt.axes.get_xaxis().set_visible(False)
+                individual_traces_plt.set_ybound((-60, 20)) 
+                            
+                time_axis, mean_trace, stderr_trace = collate_traces(traces_data)  
+                group_trace_plt.plot(time_axis, mean_trace, linewidth=1, label="Mean Trace + Std.Error", color="darkcyan")
+                group_trace_plt.fill_between(time_axis, mean_trace+stderr_trace, mean_trace-stderr_trace, alpha=0.4, color="salmon")  
+                group_trace_plt.legend(loc="upper right", fontsize="small", shadow=True)
+                group_trace_plt.set_ybound((-60, 20)) 
+                
+                group_traces_plt.plot(time_axis, mean_trace, linewidth=1, label=group_name)
+                group_traces_plt.fill_between(time_axis, mean_trace+stderr_trace, mean_trace-stderr_trace, alpha=0.35)
+                group_traces_plt.set_ybound((-60, 30)) 
+                       
+                fig2.suptitle((group_name + " (" + epoch_name + ")"), fontsize="30", fontweight="bold")
+            
+            group_traces_plt.legend(loc="lower left", fontsize="large", shadow=True)
+            
+            all_groups_plt.tight_layout()
+
 
 
     
